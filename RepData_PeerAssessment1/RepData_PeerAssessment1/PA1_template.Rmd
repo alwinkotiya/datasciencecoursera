@@ -1,0 +1,73 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+```{r}
+unzip("./activity.zip")
+activityData <- read.csv("./activity.csv")
+summary(activityData)
+head(activityData)
+```
+
+## What is mean total number of steps taken per day?
+```{r}
+StepsPerDay <- aggregate(steps ~ date, activityData, sum, na.rm=TRUE)
+hist(StepsPerDay$steps, main = "Total number of steps taken per day",  xlab = "Steps taken per day")
+
+meanStepsPerDay <- mean(StepsPerDay$steps)
+medianStepsPerDay <- median(StepsPerDay$steps)
+meanStepsPerDay
+medianStepsPerDay
+```
+## What is the average daily activity pattern?
+```{r}
+StepsPerInterval<-aggregate(steps~interval, data=activityData, mean, na.rm=TRUE)
+plot(steps~interval, data=StepsPerInterval, type="l", main = "Avg # of Steps per interval")
+
+IntervalWithMaxStep = StepsPerInterval[which.max(StepsPerInterval$steps),]$interval
+IntervalWithMaxStep
+```
+## Imputing missing values
+```{r}
+totalNAValues <- sum(is.na(activityData$steps))
+totalNAValues
+
+getMeanStepsPerInterval<-function(interval){
+    StepsPerInterval[StepsPerInterval$interval==interval,]$steps
+}
+
+activityDataExcludingNA<-activityData
+for(i in 1:nrow(activityDataExcludingNA)){
+    if(is.na(activityDataExcludingNA[i,]$steps)){
+        activityDataExcludingNA[i,]$steps <- getMeanStepsPerInterval(activityDataExcludingNA[i,]$interval)
+    }
+}
+
+totalStepsPerDayExcludingNA <- aggregate(steps ~ date, data=activityDataExcludingNA, sum)
+hist(totalStepsPerDayExcludingNA$steps,  main = "Total number of steps taken per day (Excluding NA)",  xlab = "Steps taken per day")
+
+```
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+activityDataExcludingNA$date <- as.Date(strptime(activityDataExcludingNA$date, format="%Y-%m-%d"))
+activityDataExcludingNA$day <- weekdays(activityDataExcludingNA$date)
+for (i in 1:nrow(activityDataExcludingNA)) {
+    if (activityDataExcludingNA[i,]$day %in% c("Saturday","Sunday")) {
+        activityDataExcludingNA[i,]$day<-"weekend"
+    }
+    else{
+        activityDataExcludingNA[i,]$day<-"weekday"
+    }
+}
+stepsByDay <- aggregate(activityDataExcludingNA$steps ~ activityDataExcludingNA$interval + activityDataExcludingNA$day, activityDataExcludingNA, mean)
+
+names(stepsByDay) <- c("interval", "day", "steps")
+library(lattice)
+xyplot(steps ~ interval | day, stepsByDay, type = "l", layout = c(1, 2), 
+    xlab = "Interval", ylab = "Number of steps")
+```
